@@ -3,25 +3,7 @@ var fetch = require('isomorphic-fetch');
 module.exports = function (ctx, cb) {
   var token = ctx.data['github-token'];
   var prsPromise = [
-    'mulesoft/anypoint-vcs',
-    'mulesoft/anypoint-vcs-db',
-    'mulesoft/asset-manager',
-    'mulesoft/asset-manager-db',
-    'mulesoft/asset-portal-service',
-    'mulesoft/asset-portal-service-db',
-    'mulesoft/asset-review-service',
-    'mulesoft/asset-review-service-db',
-    'mulesoft/exchange-auth-components',
-    'mulesoft/exchange-custom-assets-facade',
-    'mulesoft/exchange-dependency-resolver',
-    'mulesoft/exchange-graph-service',
-    'mulesoft/exchange-maven-facade',
-    'mulesoft/exchange-ui',
-    'mulesoft/exchange-xapi',
-    'mulesoft/exchange2-kubernetes',
-    'mulesoft/microservice-template',
-    'mulesoft/repository-service',
-    'mulesoft/repository-service-db'
+    'mulesoft/Mule-Tooling'
   ].map(function (repo) {
     return fetchPR(repo);
   });
