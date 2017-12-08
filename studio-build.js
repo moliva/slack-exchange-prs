@@ -10,6 +10,16 @@ module.exports = (ctx, cb) => {
 
     const projectsUrl = `${host}/rest/api/latest/project?os_authType=basic&expand=projects.project.plans.plan.branches`;
 
+    // params
+    const ONLY_ERROR = 'error';
+    const SET = 'set';
+    const ALL = 'all';
+
+    const sets = {
+        default: ["FT", "TOOL"],
+        func: ["TTS", "TTL"]
+    }
+
     const username = ctx.data['bamboo-username'];
     const password = ctx.data['bamboo-password'];
     const auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
@@ -19,11 +29,17 @@ module.exports = (ctx, cb) => {
         Accept: 'application/json'
     };
 
+    const params = {};
+    ctx.body.text.split(" ").filter(string => string !== "").map(property => property.split("=")).forEach(element => params[element[0]] = element[1] ? element[1] : "true");
+
     fetch(projectsUrl, {
             headers
         })
         .then(response => response.json())
-        .then(object => Promise.all(object.projects.project.filter(project => ["FT", "TOOL"].indexOf(project.key) !== -1).map(resolveProject)))
+        .then(object => object.projects.project)
+        .then(applyPreFilters)
+        .then(projects => Promise.all(projects.map(resolveProject)))
+        .then(applyPostFilters)
         .then(generateResponse)
         .then(result => {
             cb(null, {
@@ -38,11 +54,37 @@ module.exports = (ctx, cb) => {
             });
         });
 
+    function applyPreFilters(projects) {
+        if (params[ALL]) {
+            return projects;
+        }
+        return projects.filter(project => sets[params[SET] ? params[SET] : 'default'].indexOf(project.key) !== -1);
+    }
+
+    function applyPostFilters(projects) {
+        if (!params[ONLY_ERROR]) {
+            return projects;
+        }
+        return projects.reduce((array, project) => array.concat(erroredOrEmpty(project)), []);
+    }
+
+    function erroredOrEmpty(project) {
+        project.plans = project.plans.reduce((array, plan) =>
+            array.concat(
+                plan.master.isSuccessful() && plan.branches.filter(branch => !branch.isSuccessful()).length == 0 ? [] : {
+                    master: plan.master,
+                    branches: plan.branches.filter(branch => !branch.isSuccessful())
+                }
+            ), []);
+        return project.plans.length == 0 ? [] : [project];
+    }
+
     function generateResponse(projects) {
         return {
             // text: "Studio Build",
             attachments: projects.reduce((array, project) =>
-                array.concat(
+                array //
+                .concat(
                     [{
                         // pretext: project.name + " Project",
                         title: project.name,
@@ -50,12 +92,14 @@ module.exports = (ctx, cb) => {
                         footer: "Project",
                         title_link: `${host}/browse/${project.key}`,
                         color: '#ffffff'
-                    }]).concat(project.plans.reduce((array2, plan) =>
-                    array2 //
+                    }]) //
+                .concat(project.plans.reduce((array2, plan) =>
+                        array2 //
                         .concat([generatePlanResponse(plan.master)]) //
                         .concat(plan.branches.slice(0, plan.branches.length - 1).map(branch => generatePlanResponse(branch, false))) //
                         .concat(plan.branches.length < 1 ? [] : [generatePlanResponse(plan.branches[plan.branches.length - 1], true)]) //
-                    , [])) //
+                        , []) //
+                ) //
                 , [])
         };
     }
@@ -66,7 +110,7 @@ module.exports = (ctx, cb) => {
             title: prefix + plan.name,
             footer: (plan.isMaster ? "Plan" : "Branch") + " build number: " + plan.buildNumber,
             title_link: `${host}/browse/${plan.key}-${plan.buildNumber}`,
-            color: plan.lifeCycleState === "Finished" ? (plan.state == "Successful" ? '#1b6' : '#d34') : '#eee'
+            color: plan.isFinished() ? (plan.isSuccessful() ? '#1b6' : '#d34') : '#eee'
         }
         // prColor = '#1b6';         verde
         // prColor = '#fb2';        amarillo
@@ -115,9 +159,11 @@ module.exports = (ctx, cb) => {
                 state: result.state,
                 isMaster: isMaster ? true : false,
                 buildNumber: result.buildNumber,
-                name: result.plan ? result.plan.shortName : "saraza",
+                name: result.plan ? result.plan.shortName : result.message,
                 key: key,
-                lifeCycleState: result.lifeCycleState
+                lifeCycleState: result.lifeCycleState,
+                isSuccessful: () => result.state == "Successful",
+                isFinished: () => result.lifeCycleState === "Finished"
             }));
     }
 
