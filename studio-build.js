@@ -28,7 +28,7 @@ module.exports = (ctx, cb) => {
         .then(result => {
             cb(null, {
                 response_type: 'in_channel',
-                text: result.text,
+                // text: result.text,
                 attachments: result.attachments
             });
         })
@@ -40,27 +40,33 @@ module.exports = (ctx, cb) => {
 
     function generateResponse(projects) {
         return {
-            text: "Studio Build",
+            // text: "Studio Build",
             attachments: projects.reduce((array, project) =>
                 array.concat(
                     [{
+                        // pretext: project.name + " Project",
                         title: project.name,
-                        text: "Project",
-                        title_link: `${host}/browse/${project.key}`
-                    }].concat(project.plans.reduce((array2, plan) =>
-                        array2.concat([generatePlanResponse(plan.master)].concat(plan.branches.map(generatePlanResponse))) //
-                        , []))) //
+                        thumb_url: "https://d2lp05f39ek59n.cloudfront.net/uploads/Atlassian_Bamboo_product_img_753498732_atlassian_charlie_square.png",
+                        footer: "Project",
+                        title_link: `${host}/browse/${project.key}`,
+                        color: '#ffffff'
+                    }]).concat(project.plans.reduce((array2, plan) =>
+                    array2 //
+                        .concat([generatePlanResponse(plan.master)]) //
+                        .concat(plan.branches.slice(0, plan.branches.length - 1).map(branch => generatePlanResponse(branch, false))) //
+                        .concat(plan.branches.length < 1 ? [] : [generatePlanResponse(plan.branches[plan.branches.length - 1], true)]) //
+                    , [])) //
                 , [])
         };
     }
 
-    function generatePlanResponse(plan) {
-        const prefix = plan.isMaster ? "-- " : "\\---- ";
+    function generatePlanResponse(plan, isLast) {
+        const prefix = plan.isMaster ? "" : (isLast ? "╚═ " : "╠═ ");
         return {
             title: prefix + plan.name,
-            text: plan.isMaster ? "Plan" : "Branch",
-            title_link: `${host}/browse/${plan.key}/latest`,
-            color: plan.state == "Successful" ? '#1b6' : '#d34'
+            footer: (plan.isMaster ? "Plan" : "Branch") + " build number: " + plan.buildNumber,
+            title_link: `${host}/browse/${plan.key}-${plan.buildNumber}`,
+            color: plan.lifeCycleState === "Finished" ? (plan.state == "Successful" ? '#1b6' : '#d34') : '#eee'
         }
         // prColor = '#1b6';         verde
         // prColor = '#fb2';        amarillo
@@ -108,11 +114,11 @@ module.exports = (ctx, cb) => {
             .then(result => ({
                 state: result.state,
                 isMaster: isMaster ? true : false,
+                buildNumber: result.buildNumber,
                 name: result.plan ? result.plan.shortName : "saraza",
                 key: key,
                 lifeCycleState: result.lifeCycleState
             }));
-        // result.lifeCycleState === "Finished"
     }
 
 }
