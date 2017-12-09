@@ -6,7 +6,7 @@ module.exports = (ctx, cb) => {
     // 2. Response formatting: https://api.slack.com/docs/messages/builder
     // 3. Secrets you configure using the key icon are available on `ctx.secrets`
 
-    const host = "http://ec2-107-20-208-73.compute-1.amazonaws.com:8085";
+    const host = `http://${ctx.data['bamboo-host']}`;
 
     const projectsUrl = `${host}/rest/api/latest/project?os_authType=basic&expand=projects.project.plans.plan.branches`;
 
@@ -157,10 +157,10 @@ module.exports = (ctx, cb) => {
             .then(response => response.json())
             .then(result => ({
                 state: result.state,
-                isMaster: isMaster ? true : false,
+                isMaster,
                 buildNumber: result.buildNumber,
                 name: result.plan ? result.plan.shortName : result.message,
-                key: key,
+                key,
                 lifeCycleState: result.lifeCycleState,
                 isSuccessful: () => result.state == "Successful",
                 isFinished: () => result.lifeCycleState === "Finished"
