@@ -6,18 +6,26 @@ module.exports = (ctx, cb) => {
     // 2. Response formatting: https://api.slack.com/docs/messages/builder
     // 3. Secrets you configure using the key icon are available on `ctx.secrets`
 
-    const host = `http://${ctx.data['bamboo-host']}`;
-
-    const projectsUrl = `${host}/rest/api/latest/project?os_authType=basic&expand=projects.project.plans.plan.branches`;
 
     // params
     const ONLY_ERROR = 'error';
+    const HELP = 'help';
     const SET = 'set';
     const ALL = 'all';
 
     const sets = {
         default: ["FT", "TOOL"],
         func: ["TTS", "TTL"]
+    }
+
+    const params = parseParams(ctx.body.text);
+
+    if (params[HELP]) {
+        cb(null, {
+            response_type: 'in_channel',
+            text: `Usage: /wt studio-build [${ALL}] [${ONLY_ERROR}] [${SET}=(${Object.keys(sets).join("|")})]`
+        });
+        return;
     }
 
     const username = ctx.data['bamboo-username'];
@@ -29,8 +37,8 @@ module.exports = (ctx, cb) => {
         Accept: 'application/json'
     };
 
-    const params = {};
-    ctx.body.text.split(" ").filter(string => string !== "").map(property => property.split("=")).forEach(element => params[element[0]] = element[1] ? element[1] : "true");
+    const host = `http://${ctx.data['bamboo-host']}`;
+    const projectsUrl = `${host}/rest/api/latest/project?os_authType=basic&expand=projects.project.plans.plan.branches`;
 
     fetch(projectsUrl, {
             headers
@@ -53,6 +61,15 @@ module.exports = (ctx, cb) => {
                 text: "Error: " + err.message
             });
         });
+
+    function parseParams(argLine) {
+        const params = {};
+        argLine.split(" ") //
+            .filter(string => string !== "") //
+            .map(property => property.split("=")) //
+            .forEach(element => params[element[0]] = element[1] ? element[1] : "true");
+        return params;
+    }
 
     function applyPreFilters(projects) {
         if (params[ALL]) {
