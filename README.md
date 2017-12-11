@@ -12,9 +12,13 @@ Basic command:
 ```
 /wt studio-build
 ```
-Apply set filter (e.g. `func` for functional tests, `default` for standard Fast Tests and Tooling projects):
+Apply `set` filter (e.g. `func` for functional tests, `default` for standard Fast Tests and Tooling projects):
 ```
 /wt studio-build set=func
+```
+Might also be the complement of the set by prepending the set name with `!`:
+```
+/wt studio-build set=!func
 ```
 Apply an `all` fitler to view all build status:
 ```

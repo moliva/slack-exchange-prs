@@ -75,7 +75,13 @@ module.exports = (ctx, cb) => {
         if (params[ALL]) {
             return projects;
         }
-        return projects.filter(project => sets[params[SET] ? params[SET] : 'default'].indexOf(project.key) !== -1);
+        return projects.filter(project => {
+            if (!params[SET] || !params[SET].startsWith("!")) {
+                return sets[params[SET] ? params[SET] : 'default'].indexOf(project.key) !== -1;
+            } else { // not operation "!"
+                return sets[params[SET].slice(1)].indexOf(project.key) === -1;
+            }
+        });
     }
 
     function applyPostFilters(projects) {
